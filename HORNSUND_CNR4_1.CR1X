@@ -1,0 +1,58 @@
+'CR1000X Series
+'Created by Short Cut (4.0)
+
+'Declare Variables and Units
+Public BattV
+Public PTemp_C
+Public SW_UP
+Public SW_DN
+Public LW_UP
+Public LW_DN
+Public TEMP
+
+Units BattV=Volts
+Units PTemp_C=Deg C
+Units SW_UP=mV
+Units SW_DN=mV
+Units LW_UP=mV
+Units LW_DN=mV
+Units TEMP=mV/mV
+
+'Define Data Tables
+DataTable(Table1,True,-1)
+	DataInterval(0,1,Min,10)
+	Sample(1,SW_UP,FP2)
+	Sample(1,SW_DN,FP2)
+	Sample(1,LW_UP,FP2)
+	Sample(1,LW_DN,FP2)
+	Sample(1,TEMP,FP2)
+EndTable
+
+DataTable(Table2,True,-1)
+	DataInterval(0,1440,Min,10)
+	Minimum(1,BattV,FP2,False,False)
+EndTable
+
+'Main Program
+BeginProg
+	'Main Scan
+	Scan(1,Sec,1,0)
+		'Default CR1000X Datalogger Battery Voltage measurement 'BattV'
+		Battery(BattV)
+		'Default CR1000X Datalogger Wiring Panel Temperature measurement 'PTemp_C'
+		PanelTemp(PTemp_C,50)
+		'Generic Differential Voltage measurements 'SW_UP'
+		VoltDiff(SW_UP,1,mV5000,1,True,500,50,1,0)
+		'Generic Differential Voltage measurements 'SW_DN'
+		VoltDiff(SW_DN,1,mV5000,2,True,500,50,1,0)
+		'Generic Differential Voltage measurements 'LW_UP'
+		VoltDiff(LW_UP,1,mV5000,3,True,500,50,1,0)
+		'Generic Differential Voltage measurements 'LW_DN'
+		VoltDiff(LW_DN,1,mV5000,4,True,500,50,1,0)
+		'Generic Half Bridge measurements 'TEMP'
+		BrHalf(TEMP,1,mV5000,9,VX1,1,2500,True,500,50,1,0)
+		'Call Data Tables and Store Data
+		CallTable Table1
+		CallTable Table2
+	NextScan
+EndProg
