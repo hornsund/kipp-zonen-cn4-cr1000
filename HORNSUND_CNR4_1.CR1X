@@ -3,7 +3,8 @@
 Public BattV
 Public PTemp_C
 Public cnr4(4)
-Dim SWTop, SWBottom, LWTop, LWBottom
+Public SWTop, SWBottom
+Dim LWTop, LWBottom
 Alias cnr4(1) = SW_UP
 Alias cnr4(2) = SW_DN
 Alias cnr4(3) = LW_UP
@@ -72,6 +73,8 @@ DataTable (cnr4_data,True,-1)
 	Average (4,cnr4(1),IEEE4,False)
 	Average (1,cnr4_T_C,IEEE4,False)
 	Average (1,cnr4_T_K,IEEE4,False)
+	Average (1,SWTop,IEEE4,False)
+	Average (1,SWBottom,IEEE4,False)
 	Average (1,LWTopC,IEEE4,False)
 	Average (1,LWBottomC,IEEE4,False)
 	Average (1,Rs_net,IEEE4,False)
