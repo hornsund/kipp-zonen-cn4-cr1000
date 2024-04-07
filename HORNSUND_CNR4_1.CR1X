@@ -1,14 +1,23 @@
 'CR1000X Series
-'Created by Short Cut (4.0)
 
-'Declare Variables and Units
 Public BattV
 Public PTemp_C
-Public SW_UP
-Public SW_DN
-Public LW_UP
-Public LW_DN
+Public cnr4(4)
+Dim SWTop, SWBottom, LWTop, LWBottom
+Alias cnr4(1) = SW_UP
+Alias cnr4(2) = SW_DN
+Alias cnr4(3) = LW_UP
+Alias cnr4(4) = LW_DN
 Public TEMP
+
+Public cnr4_T_C                  'CNR4 thermistor temperature in Celsius
+Public cnr4_T_K                  'CNR4 thermistor temperature in Kelvin
+Public LWTopC                    'Downwelling long-wave radiation with temperature correction
+Public LWBottomC                 'Upwelling long-wave radiation with temperature correction
+Public Rs_net                    'short-wave net radiation
+Public Rl_net                    'long-wave net radiation
+Public albedo                    'Albedo
+Public Rn                        'total net radiation
 
 Units BattV=Volts
 Units PTemp_C=Deg C
@@ -17,8 +26,32 @@ Units SW_DN=mV
 Units LW_UP=mV
 Units LW_DN=mV
 Units TEMP=mV/mV
+Units cnr4_T_C = deg_C
+Units cnr4_T_K = K
+Units LWTopC = W/m^2
+Units LWBottomC = W/m^2
+Units Rs_net = W/m^2
+Units Rl_net = W/m^2
+Units albedo = W/m^2
+Units Rn = W/m^2
 
-'Define Data Tables
+Dim Rs
+
+Const pyranometer_up_sensitivity = 13.96 'unique sensitivity for upper pyranometer
+                                         '(microV/W/m^2)
+Const pyranometer_dn_sensitivity = 14.51 'unique sensitivity for lower pyranometer
+                                         '(microV/W/m^2)
+Const pyrgeometer_up_sensitivity = 12.17  'unique sensitivity for upper pyrgeometer
+                                         '(microV/W/m^2)
+Const pyrgeometer_dn_sensitivity = 13.21  'unique sensitivity for lower pyrgeometer
+                                         '(microV/W/m^2)
+
+'CNR4 multipliers
+Const pyranometer_up_mult = 1000/pyranometer_up_sensitivity '(W/m^2/mV)
+Const pyranometer_dn_mult = 1000/pyranometer_dn_sensitivity '(W/m^2/mV)
+Const pyrgeometer_up_mult = 1000/pyrgeometer_up_sensitivity '(W/m^2/mV)
+Const pyrgeometer_dn_mult = 1000/pyrgeometer_dn_sensitivity '(W/m^2/mV)
+
 DataTable(Table1,True,-1)
 	DataInterval(0,1,Min,10)
 	Sample(1,SW_UP,FP2)
@@ -33,26 +66,58 @@ DataTable(Table2,True,-1)
 	Minimum(1,BattV,FP2,False,False)
 EndTable
 
-'Main Program
+DataTable (cnr4_data,True,-1)
+	DataInterval (0,1,Min,10)
+	Sample (1,PTemp_C,FP2)
+	Average (4,cnr4(1),IEEE4,False)
+	Average (1,cnr4_T_C,IEEE4,False)
+	Average (1,cnr4_T_K,IEEE4,False)
+	Average (1,LWTopC,IEEE4,False)
+	Average (1,LWBottomC,IEEE4,False)
+	Average (1,Rs_net,IEEE4,False)
+	Average (1,Rl_net,IEEE4,False)
+	Average (1,albedo,IEEE4,False)
+	Average (1,Rn,IEEE4,False)
+EndTable
+
 BeginProg
-	'Main Scan
 	Scan(1,Sec,1,0)
-		'Default CR1000X Datalogger Battery Voltage measurement 'BattV'
 		Battery(BattV)
-		'Default CR1000X Datalogger Wiring Panel Temperature measurement 'PTemp_C'
-		PanelTemp(PTemp_C,50)
-		'Generic Differential Voltage measurements 'SW_UP'
-		VoltDiff(SW_UP,1,mV5000,1,True,500,50,1,0)
-		'Generic Differential Voltage measurements 'SW_DN'
-		VoltDiff(SW_DN,1,mV5000,2,True,500,50,1,0)
-		'Generic Differential Voltage measurements 'LW_UP'
-		VoltDiff(LW_UP,1,mV5000,3,True,500,50,1,0)
-		'Generic Differential Voltage measurements 'LW_DN'
-		VoltDiff(LW_DN,1,mV5000,4,True,500,50,1,0)
-		'Generic Half Bridge measurements 'TEMP'
-		BrHalf(TEMP,1,mV5000,9,VX1,1,2500,True,500,50,1,0)
-		'Call Data Tables and Store Data
+		PanelTemp(PTemp_C,250)
+
+		'CNR4 radiation measurements
+		VoltDiff (cnr4(),4,mV200,1,True,0,_50Hz,1,0)
+		SWTop = SW_UP * pyranometer_up_mult
+		SWBottom = SW_DN * pyranometer_dn_mult
+		LWTop = LW_UP * pyrgeometer_up_mult
+		LWBottom = LW_DN * pyrgeometer_dn_mult
+
+		'CNR4 thermistor measurement
+		BrHalf(TEMP,1,mV5000,9,VX1,1,2500,True,0,_50Hz,1,0)
+		Rs = 10000*((1-TEMP)/TEMP)
+		cnr4_T_C = 1/(1.0295e-3+2.391e-4*LN(Rs)+1.568e-7*(LN(Rs))^3)-273.15
+
+		'Convert CNR4 temperature to Kelvin
+		cnr4_T_K = cnr4_T_C+273.15
+
+		'Correct the long-wave radiation values from pyrgeometers
+		LWTopC = LWTop+5.67e-8*cnr4_T_K^4
+		LWBottomC = LWBottom+5.67e-8*cnr4_T_K^4
+
+		'Compute short-wave net radiation
+		Rs_net = SWTop - SWBottom
+
+		'Compute long-wave net radiation
+		Rl_net = LWTopC - LWBottomC
+
+		'Compute albedo
+		albedo = SWBottom/SWTop
+
+		'Compute net radiation
+		Rn = Rs_net + Rl_net
+
 		CallTable Table1
 		CallTable Table2
+		CallTable cnr4_data
 	NextScan
 EndProg
